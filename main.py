@@ -7,6 +7,19 @@ from openai import OpenAI
 
 load_dotenv()
 
+API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+
+if not API_KEY:
+    raise ValueError("AZURE_OPENAI_API_KEY is not set")
+
+if not ENDPOINT:
+    raise ValueError("AZURE_OPENAI_ENDPOINT is not set")
+
+if not DEPLOYMENT_NAME:
+    raise ValueError("AZURE_OPENAI_DEPLOYMENT is not set")
+
 app = FastAPI()
 
 origins = [
@@ -24,11 +37,9 @@ app.add_middleware(
 )
 
 client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/v1/",
+    api_key=API_KEY,
+    base_url=f"{ENDPOINT}/openai/v1/",
 )
-
-DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT")
 
 
 class ChatRequest(BaseModel):
@@ -40,8 +51,16 @@ def root():
     return {"message": "backend is running"}
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.post("/chat")
 def chat(req: ChatRequest):
+    print("chat endpoint called")
+    print(f"user message: {req.message}")
+
     try:
         response = client.chat.completions.create(
             model=DEPLOYMENT_NAME,
@@ -59,8 +78,10 @@ def chat(req: ChatRequest):
         )
 
         answer = response.choices[0].message.content
+        print("azure openai success")
 
         return {"reply": answer}
 
     except Exception as e:
+        print(f"azure openai error: {str(e)}")
         return {"reply": f"エラーが発生しました: {str(e)}"}
